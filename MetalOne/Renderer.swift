@@ -8,44 +8,76 @@ struct Uniforms {
 }
 
 
-class Renderer: NSObject, MTKViewDelegate {
-    var entities: [Mesh] = []
-    var device: MTLDevice!
-    var pipelineState: MTLRenderPipelineState!
-    var commandQueue: MTLCommandQueue!
+final class Renderer {
+    private var renderables: [any Renderable] = []
+    
+    var device: MTLDevice
+    var commandQueue: MTLCommandQueue
+    var pipelineState: MTLRenderPipelineState?
+    var uniformBuffer: MTLBuffer?
+    var color: Color = (r: 0.4, g: 0.4, b: 0.4, a: 1.0)
 
-    var color = (r: 0.4, g: 0.4, b: 0.4, a: 1.0)
     
-    var geometry: GeometryProtocol
-    var mesh: Mesh
+     init() {
+         guard let device = MTLCreateSystemDefaultDevice() else {
+             fatalError("GPU is not supported")
+         }
+         
+         guard let commandQueue = device.makeCommandQueue() else {
+             fatalError("Could not create a command queue")
+         }
+         
+         self.device = device
+         self.commandQueue = commandQueue
+         self.uniformBuffer = device.makeBuffer(
+            length: MemoryLayout<Uniforms>.stride,
+            options: .storageModeShared
+         );
+         self.pipelineState = self.buildPipelineState()
+    }
     
-    var uniformBuffer: MTLBuffer!
+    func clearColor(r: Float, g: Float, b: Float) {
+        color = (r: r, g: g, b: b, a: 1.0)
+    }
     
-    override init() {
-        device = MTLCreateSystemDefaultDevice()
-        commandQueue = device?.makeCommandQueue()
-      
-        geometry = RegularPolygonGeometry(sides: 32, rad: 0.5)
-        mesh = Mesh(geo: geometry)
+   
+    func insert(mesh: Mesh) {
+        mesh.prepare(device: self.device)
+        self.renderables.append(mesh)
+    }
+
+  
+    func draw(view: MTKView) {
+        guard
+            let drawable = view.currentDrawable,
+            let descriptor = view.currentRenderPassDescriptor,
+            let commandBuffer = commandQueue.makeCommandBuffer(),
+            let pipelineState = pipelineState
+        else { return }
+       
+       
+        descriptor.colorAttachments[0].clearColor = MTLClearColor(red: Double(color.r), green: Double(color.g), blue: Double(color.b), alpha: Double(color.a))
+        descriptor.colorAttachments[0].loadAction = .clear
+
+        let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor)
+       
+       encoder?.setRenderPipelineState(pipelineState)
         
-        uniformBuffer = device?.makeBuffer(length: MemoryLayout<Uniforms>.stride, options: .storageModeShared);
+        for r in renderables {
+            r.draw(encoder: encoder!, uniformsBuffer: uniformBuffer!)
+        }
         
-        super.init()
-        
-        mesh.createBuffer(device: device)
-        entities.append(mesh)
-        
-        buildPipelineState()
+        encoder?.endEncoding()
+        commandBuffer.present(drawable)
+        commandBuffer.commit()
     }
     
     
-   func add(mesh: Mesh) {
-        entities.append(mesh)
-    }
-    
-    private func buildPipelineState() {
+    private func buildPipelineState() -> MTLRenderPipelineState? {
         // shader module
-        let shader = createShaderLibrary()
+        guard let shader = createShaderLibrary() else {
+            return nil
+        }
         
         // render Pass descriptor
         let pipelineStateDescriptor = MTLRenderPipelineDescriptor()
@@ -65,72 +97,19 @@ class Renderer: NSObject, MTKViewDelegate {
         
       
         pipelineStateDescriptor.vertexDescriptor = vertexDescriptor
-        pipelineState = try! device.makeRenderPipelineState(descriptor: pipelineStateDescriptor)
-        
+        return try? self.device.makeRenderPipelineState(descriptor: pipelineStateDescriptor)
     }
     
-    private func createShaderLibrary() -> (vertex: MTLFunction, fragment: MTLFunction) {
-        let defaultLibrary = device.makeDefaultLibrary()!
-        let fragment = defaultLibrary.makeFunction(name: "default_fragment")!
-        let vertex = defaultLibrary.makeFunction(name: "default_vertex")!
-        return (vertex, fragment)
-    }
-
-
-   func draw(in view: MTKView) {
+    private func createShaderLibrary(vertexSrc: String = "default_vertex", fragmentSrc: String = "default_fragment") -> (vertex: MTLFunction, fragment: MTLFunction)? {
         guard
-            let drawable = view.currentDrawable,
-            let descriptor = view.currentRenderPassDescriptor,
-            let commandBuffer = commandQueue?.makeCommandBuffer()
-        else { return }
-        
-        let pipelineState = pipelineState!
-        
-        descriptor.colorAttachments[0].clearColor = MTLClearColor(red: color.r, green: color.g, blue: color.b, alpha: color.a)
-        descriptor.colorAttachments[0].loadAction = .clear
-
-        let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor)
-        
-        for mesh in entities {
-            encoder?.setRenderPipelineState(pipelineState)
-            encoder?.setVertexBuffer(mesh.buffer, offset: 0, index: 0)
-            encoder?.setVertexBuffer(uniformBuffer, offset: 0, index: 1)
-            encoder?.setFragmentBuffer(uniformBuffer, offset: 0, index: 1)
-            encoder?.drawPrimitives(
-                type: .triangle,
-                vertexStart: 0,
-                vertexCount: mesh.geometry.vertexCount,
-                instanceCount: 1
-            )
+            let library = self.device.makeDefaultLibrary(),
+            let vertex = library.makeFunction(name: vertexSrc),
+            let fragment = library.makeFunction(name: fragmentSrc)
+        else {
+            return nil
         }
         
-        encoder?.endEncoding()
-        commandBuffer.present(drawable)
-        commandBuffer.commit()
+        return (vertex, fragment)
     }
-        
-    
-    func mtkView(_ view: MTKView, drawableSizeWillChange size: CGSize) {}
 }
 
-
-struct RendererWarpView: NSViewRepresentable {
-    func makeCoordinator() -> Renderer { Renderer() }
-    
-    private func setupView(context: Context) -> MTKView {
-        let view = MTKView()
-        
-        view.delegate = context.coordinator
-        view.clearColor = MTLClearColor(red: 0.4, green: 0.4, blue: 0.4, alpha: 1.0)
-        view.device = context.coordinator.device
-        view.framebufferOnly = true
-        view.enableSetNeedsDisplay = false
-        view.isPaused = false
-        
-        return view
-    }
-
-    func makeNSView(context: Context) -> MTKView { setupView(context: context) }
-    
-    func updateNSView(_ nsView: MTKView, context: Context) {}
-}

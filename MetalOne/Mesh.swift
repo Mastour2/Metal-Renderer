@@ -1,28 +1,33 @@
 import Metal
-import simd
 
 
-struct Transform {
-    let position = SIMD3<Float>(0, 0, 0)
-    let scale = SIMD3<Float>(1, 1, 1)
-    var modle = matrix_identity_half4x4
-}
-
-
-struct Mesh: MeshProtocol {
+class Mesh: MeshProtocol, Renderable {
     var geometry: GeometryProtocol
-    var buffer: MTLBuffer!
-    var size: Int = 0
-    var modle = matrix_identity_half4x4
-    
-    init(geo: GeometryProtocol) {
+    var material: Material?
+   
+    internal var buffer: MTLBuffer!
+        
+    init(geo: GeometryProtocol, mat: Material? = nil) {
         geometry = geo
+        material = mat
     }
     
-    mutating func createBuffer(device: MTLDevice) {
-        // size of buffer
-        size = geometry.positions.count * MemoryLayout.size(ofValue: geometry.positions[0])
+    func prepare(device: MTLDevice) {
         // create buffer in gpu and make default options array
-        buffer = device.makeBuffer(bytes: geometry.positions, length: size, options: [])
+        buffer = device.makeBuffer(bytes: geometry.vertices, length: geometry.vertices.count * MemoryLayout<Float>.size, options: [])
+    }
+    
+    func draw(encoder: MTLRenderCommandEncoder, uniformsBuffer: MTLBuffer) {
+        guard let buffer else { return }
+        
+        encoder.setVertexBuffer(buffer, offset: 0, index: 0)
+        encoder.setVertexBuffer(uniformsBuffer, offset: 0, index: 1)
+        encoder.setFragmentBuffer(uniformsBuffer, offset: 0, index: 1)
+        encoder.drawPrimitives(
+            type: .triangle,
+            vertexStart: 0,
+            vertexCount: geometry.vertexCount,
+            instanceCount: 1
+        )
     }
 }

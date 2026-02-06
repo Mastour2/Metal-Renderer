@@ -1,9 +1,10 @@
 import Foundation
 
 
+// 2D Geometry
 
 struct TriangleGeometry: GeometryProtocol {
-    var positions: [Float] = [
+    var vertices: [Float] = [
         -0.5, -0.5, 0.0,
          0.5, -0.5, 0.0,
          0.0, 0.5, 0.0,
@@ -12,14 +13,14 @@ struct TriangleGeometry: GeometryProtocol {
 }
 
 struct RectGeometry: GeometryProtocol {
-    var positions: [Float] = []
-    var vertexCount: Int { positions.count / 3 }
+    var vertices: [Float] = []
+    var vertexCount: Int { vertices.count / 3 }
     
     init(w: Float, h: Float) {
         let hw = w * 0.5
         let hh = h * 0.5
         
-        positions = [
+        vertices = [
             -hw, -hh, 0.0,
              hw, -hh, 0.0,
             -hw,  hh, 0.0,
@@ -32,8 +33,8 @@ struct RectGeometry: GeometryProtocol {
 }
 
 struct RegularPolygonGeometry: GeometryProtocol {
-    var positions: [Float] = []
-    var vertexCount: Int { positions.count / 3 }
+    var vertices: [Float] = []
+    var vertexCount: Int { vertices.count / 3 }
 
     init(sides: Int, rad: Float) {
         for i in 0..<sides {
@@ -41,15 +42,15 @@ struct RegularPolygonGeometry: GeometryProtocol {
             let a2 = (Float(i + 1) * 2.0 * .pi) / Float(sides)
 
             
-            positions.append(contentsOf: [0.0, 0.0, 0.0])
+            vertices.append(contentsOf: [0.0, 0.0, 0.0])
             
-            positions.append(contentsOf: [
+            vertices.append(contentsOf: [
                 cos(a1) * rad,
                 sin(a1) * rad,
                 0.0
             ])
             
-            positions.append(contentsOf: [
+            vertices.append(contentsOf: [
                 cos(a2) * rad,
                 sin(a2) * rad,
                 0.0
@@ -57,3 +58,6 @@ struct RegularPolygonGeometry: GeometryProtocol {
         }
     }
 }
+
+
+// 3D Geometry
