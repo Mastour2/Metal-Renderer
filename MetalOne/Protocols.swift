@@ -1,22 +1,24 @@
 import Metal
 import simd
 
-typealias Color = (r: Float, g: Float, b: Float, a: Float)
+typealias Color = SIMD3<Float>
 
 protocol Renderable {
     func prepare(device: MTLDevice)
-    func draw(encoder: MTLRenderCommandEncoder, uniformsBuffer: MTLBuffer)
+    func draw(encoder: MTLRenderCommandEncoder)
 }
 
 protocol GeometryProtocol {
-    var vertices: [Float] { get }
+    var vertices: [Vertex] { get }
+    var indices: [UInt16] { get }
+    var normals: [Float] { get }
     var vertexCount: Int { get }
 }
 
 protocol MeshProtocol {
     var geometry: GeometryProtocol { get }
     var material: Material? { get set }
-    var buffer: MTLBuffer! { get set }
+    var vertexBuffer: MTLBuffer! { get set }
 }
 
 protocol TransformProtocol {

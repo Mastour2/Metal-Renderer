@@ -1,0 +1,11 @@
+struct Circle {
+    let mesh: Mesh
+    
+    init(x: Float, y: Float, z: Float, rad: Float) {
+        let geo = RegularPolygonGeometry(sides: 52, rad: rad)
+        let material = Material(tint: Color(1, 1, 0))
+
+        self.mesh = Mesh(geo: geo, mat: material)
+        self.mesh.transform.position = Vec3(x: x, y: y, z: z)
+    }
+}

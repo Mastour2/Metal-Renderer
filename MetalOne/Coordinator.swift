@@ -27,12 +27,13 @@ struct MetalView: NSViewRepresentable {
         let view = MTKView(frame: .zero, device: ctx.device)
         
         view.delegate = context.coordinator
-        view.clearColor = MTLClearColor(red: Double(ctx.color.r), green: Double(ctx.color.g), blue: Double(ctx.color.b), alpha: Double(ctx.color.a))
+        view.clearColor = MTLClearColor(red: Double(ctx.color.x), green: Double(ctx.color.y), blue: Double(ctx.color.z), alpha: 1.0)
         view.framebufferOnly = true
         view.enableSetNeedsDisplay = false
         view.isPaused = false
         view.preferredFramesPerSecond = 60
-        view.colorPixelFormat = .bgra8Unorm
+        view.colorPixelFormat = .rgba8Unorm
+        view.depthStencilPixelFormat = .depth32Float
        
         
         return view
@@ -40,6 +41,7 @@ struct MetalView: NSViewRepresentable {
     
     func updateNSView(_ nsView: NSViewType, context: Context) {
         
+        print("update")
     }
     
 }
