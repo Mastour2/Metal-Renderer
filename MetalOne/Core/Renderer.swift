@@ -56,8 +56,8 @@ final class Renderer {
         
   
         guard
-            let p = self.camera?.perspectiveProjection(),
-            let v = self.camera?.viewMatrix()
+            let p = self.camera?.perspective(),
+            let v = self.camera?.viewMat()
         else {return}
         
         self.camera?.updateAspect(view: view)
@@ -75,16 +75,18 @@ final class Renderer {
   
         encoder?.setDepthStencilState(depthState)
         encoder?.setRenderPipelineState(pipelineState)
+      
+        encoder?.setFrontFacing(.clockwise)
         encoder?.setCullMode(.back)
         
    
         for r in renderables {
             if let mesh = r as? Mesh {
-                mesh.transform.rotation.y += 0.005
+               //mesh.transform.rotation.y += 0.01
                 
                 let m = mesh.transform.matrix
-                
                 let MVP = p * v * m
+                
                 var cameraUniforms = CameraUniforms(
                     mvp: MVP,
                     modelMatrix: m,
@@ -93,6 +95,7 @@ final class Renderer {
                 
                 encoder?.setVertexBytes(&cameraUniforms, length: MemoryLayout<CameraUniforms>.stride, index: 2)
                 encoder?.setFragmentBytes(&cameraUniforms, length: MemoryLayout<CameraUniforms>.stride, index: 2)
+                
                 r.draw(encoder: encoder!)
             }
         }

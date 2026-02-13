@@ -1,54 +1,71 @@
 import simd
 import MetalKit
 
+enum CameraType {
+    case Debug
+}
+
 struct Camera {
-    var fovy: Float
-    var aspect: Float = 1.0
+    var fovy: Float = 60
+    var aspect: Float = 1
     var near: Float = 0.1
-    var far: Float = 100.0
+    var far: Float = 100
     
-    var target: Vec3 = Vec3(0, 1, 0)
-    var transform: Transform = Transform(position: Vec3(0, 0, -5))
-    
-    
-    private var fovyRadians: Float {
-        return fovy * (.pi / 180.0)
-    }
-    
-    func lookAt() {
-        
-    }
+    var transform: Transform = Transform()
+    var target: Vec3?
     
     mutating func updateAspect(view: MTKView) {
         let size = view.drawableSize
         if size.height > 0 {
-            self.aspect = Float(size.width / size.height)
+            aspect = Float(size.width / size.height)
         }
     }
     
-    func perspectiveProjection() -> Mat4 {
-        let ys = 1 / tanf(fovyRadians * 0.5)
-        let xs = ys / aspect
-        let zs = far / (far - near)
-        
-        return Mat4(
-            [xs,  0,  0,  0],
-            [0,  ys,  0,  0],
-            [0,   0, zs,  1],
-            [0,   0, -near * zs, 0]
-        )
+    func perspective() -> Mat4 {
+        return projectionMat()
     }
     
-    func viewMatrix() -> Mat4 {
-        let translateMat = translation(-transform.position)
+    
+    func lookAtMat(eye: Vec3, center: Vec3, up: Vec3) -> Mat4 {
+        let z = normalize(center - eye)
+        let x = normalize(cross(z, up))
+        let y = cross(x, z)
         
-        let rotX = rotationX(-transform.rotation.x)
-        let rotY = rotationY(-transform.rotation.y)
-        let rotZ = rotationZ(-transform.rotation.z)
-            
-        let rotateMat = rotZ * rotY * rotX
-            
-        return rotateMat * translateMat
+        return Mat4(
+            Vec4(x.x, y.x, -z.x, 0),
+            Vec4(x.y, y.y, -z.y, 0),
+            Vec4(x.z, y.z, -z.z, 0),
+            Vec4(-dot(x, eye), -dot(y, eye), dot(z, eye), 1)
+        )
     }
- 
+   
+   
+    func projectionMat() -> Mat4 {
+        let r = fovy * (.pi / 180)
+        let y = 1 / tan(r * 0.5)
+        let x = y / aspect
+        let z = far / (far - near)
+        
+        return Mat4(
+            Vec4(x, 0, 0, 0),
+            Vec4(0, y, 0, 0),
+            Vec4(0, 0, z, 1),
+            Vec4(0, 0, -near * z, 0)
+        )
+  
+    }
+    
+    
+    func viewMat() -> Mat4 {
+        if let target = target {
+            return lookAtMat(
+                eye: transform.position,
+                center: target,
+                up: Vec3(0, 1, 0)
+            )
+        }
+        
+        return float4x4(translation: -transform.position) * float4x4(rotation: -transform.rotation)
+    }
+    
 }

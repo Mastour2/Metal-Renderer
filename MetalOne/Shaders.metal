@@ -10,6 +10,8 @@ typedef struct {
 
 typedef struct {
     float3 tint;
+    float specular_strength;
+    float shininess;
 } Material;
 
 
@@ -42,31 +44,36 @@ fragment half4 default_fragment(
                                 constant Camera& camera [[buffer(2)]]
                                 ) {
     float3 normal = normalize(in.worldNormal);
-    float3 light_direction = normalize(float3(0.0, 0.0, -5));
+    float3 view_direction = normalize(camera.cameraPosition - in.worldPosition);
     
-    float3 light_color = float3(0.9, 0.8, 0.8);
-    float3 specular_color = float3(1.0, 1.0, 1.0);
+    float3 light_pos = float3(0.0, 0.0, -5.0);
+    float3 light_dir = normalize(light_pos - in.worldPosition);
+    
+    float3 light_color = float3(0.9, 0.85, 0.7);
+    float3 ambient_color = float3(0.1, 0.1, 0.1);
     
     // 1. Ambient
-    float ambient_strength = 0.02;
+    float ambient_strength = 0.05;
     float3 ambient = ambient_strength * material.tint.rgb;
     
     // 2. Diffuse
-    float intensity = max(0.0, dot(normal, light_direction));
-    float3 diffuse = intensity * light_color;
+    float intensity = max(0.0, dot(normal, light_dir));
+    float3 diffuse = intensity * light_color * material.tint.rgb;;
     
     // 3. Specular
-    float specular_strength = 0.25;
-    float shininess = 256.0;
+    float3 half_dir = normalize(light_dir + view_direction);
+    float spec = pow(max(0.0, dot(normal, half_dir)), material.shininess);
+    float3 specular = spec * material.specular_strength * light_color;
     
-    // 4. Reflect
-    float3 view_direction = normalize(camera.cameraPosition - in.worldPosition);
-    float3 reflect_direction = reflect(-light_direction, normal);
+        
+    float3 finalColor = ambient_color + ambient + diffuse + specular;
     
-    float spec = pow(max(0.0, dot(view_direction, reflect_direction)), shininess);
-    float3 specular = specular_strength * spec * specular_color;
-    
-    float3 finalColor = ambient + diffuse + specular;
+    finalColor = pow(finalColor, float3(1.0/2.2));
     
     return half4(half3(finalColor), 1.0);
+}
+
+fragment half4 frag_normal_debug(VertexOut in [[stage_in]]) {
+    float3 normal = normalize(in.worldNormal);
+    return half4(half3(normal * 0.5 + 0.5), 1.0);
 }

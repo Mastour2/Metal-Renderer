@@ -34,6 +34,7 @@ struct MetalView: NSViewRepresentable {
         view.preferredFramesPerSecond = 60
         view.colorPixelFormat = .rgba8Unorm
         view.depthStencilPixelFormat = .depth32Float
+        view.clearDepth = 1.0
        
         
         return view
