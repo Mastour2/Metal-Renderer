@@ -26,8 +26,8 @@ app.addSystem(.startup) { world in
 }
 
 app.addSystem(.update) { world in
-    world.queryMut(Transform.self, Rotatable.self) { e, transform, r in
-        transform.rotation.z += r.value
+    world.queryMut(Transform.self, Rotatable.self) { e, t, r in
+        t.rotation.z += r.value
     }
 }
 
