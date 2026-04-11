@@ -38,19 +38,19 @@ struct Quad: Geometry {
         vertices = [
             Vertex(
                 position: Vec3(-0.5, 0.5, 0.0),
-                color: Vec3(1, 0, 0)
+                color: Vec3(1, 0.3, 1)
             ),
             Vertex(
                 position: Vec3(-0.5, -0.5, 0.0),
-                color: Vec3(0, 1, 0)
+                color: Vec3(0.4, 1, 0.5)
             ),
             Vertex(
                 position: Vec3(0.5, -0.5, 0.0),
-                color: Vec3(0, 0, 1)
+                color: Vec3(0.5, 0, 1)
             ),
             Vertex(
                 position: Vec3(0.5, 0.5, 0.0),
-                color: Vec3(0, 0, 1)
+                color: Vec3(0.8, 0.3, 1)
             ),
         ]
 

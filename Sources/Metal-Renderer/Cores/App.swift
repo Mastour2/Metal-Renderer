@@ -1,9 +1,9 @@
-protocol AppState: Equatable, Hashable {
+protocol AppState: Equatable, Hashable, CaseIterable {
     static var defaultState: Self { get }
 }
 
-enum SystemType {
-    case startup, update
+extension AppState {
+    static var defaultState: Self { allCases.first! }
 }
 
 @MainActor
@@ -14,15 +14,15 @@ class App<State: AppState> {
 
     var state: State = State.defaultState
 
-    private var updateSystems: [System] = []
-    private var startupSystems: [System] = []
-
-    private var world: World { scene.world }
+    // core systems
+    private let cameraSystem = CameraSystem()
+    private let renderSystem = RenderSystem()
+    private let transformSystem = TransformSystem()
 
     init?(
         title: String = "App",
-        width: UInt = 400,
-        height: UInt = 400
+        width: UInt = 960,
+        height: UInt = 600
     ) {
         window = Window(title: title, width: width, height: height)
         scene = Scene()
@@ -32,21 +32,53 @@ class App<State: AppState> {
             return nil
         }
         renderer = r
-        renderer.attach(scene: scene)
+        renderer.attach(world: scene.world)
     }
 
     @discardableResult
-    func addSystem(_ type: SystemType = .startup, _ system: @escaping System) -> Self {
-        switch type {
-        case .startup: startupSystems.append(system)
-        case .update: updateSystems.append(system)
+    func addSystem(_ stage: SystemStage = .startup, _ system: @escaping System) -> Self {
+        switch stage {
+        case .startup: scene.world.startupSystems.append(system)
+        case .update: scene.world.updateSystems.append(system)
         }
         return self
     }
 
     func run() {
-        for system in startupSystems { system(scene.world) }
-        for system in updateSystems { world.addSystem(system) }
+        runCoreSystems()
+        scene.world.runStartupSystems()
         window.run()
+    }
+
+    private func runCoreSystems() {
+        guard let device = renderer.device else { return }
+
+        let tSystem = transformSystem
+        let rSystem = renderSystem
+
+        // prepare meshes buffer
+        addSystem(.startup) { commands, query, _, _ in
+            query.query(Mesh.self) { e, mesh in
+                var m = mesh
+                rSystem.prepare(mesh: &m, device: device)
+                commands.addComponent(to: e, component: m)
+            }
+        }
+
+        // transform + render
+        addSystem(.update) { [weak self] _, query, _, frame in
+            guard let self,
+                let encoder = self.renderer.encoder
+            else { return }
+
+            query.query(Camera2d.self) { _, camera in
+                cameraSystem.update(for: camera, aspect: renderer.aspect, encoder: encoder)
+            }
+
+            query.query(Transform.self, Mesh.self) { entity, transform, mesh in
+                tSystem.update(for: transform, encoder: encoder)
+                rSystem.render(mesh: mesh, encoder: encoder)
+            }
+        }
     }
 }

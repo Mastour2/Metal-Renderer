@@ -4,6 +4,8 @@ swift build
 swift run
 ```
 
+Renderer engine with Entity Component System and Apple Protocol-Oriented Design
+
 ### Example
 ```swift 
 struct Rotatable: Component {

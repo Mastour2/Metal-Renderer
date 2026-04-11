@@ -20,16 +20,6 @@ extension simd_float4x4 {
         self.columns.2.z = scale.z
     }
 
-    init(rotation angle: Float) {
-        self = .identity
-
-        let c = cos(angle)
-        let s = sin(angle)
-
-        self.columns.0 = SIMD4<Float>(c, s, 0, 0)
-        self.columns.1 = SIMD4<Float>(-s, c, 0, 0)
-    }
-
     init(rotationX angle: Float) {
         self = .identity
         let c = cos(angle)
@@ -54,6 +44,7 @@ extension simd_float4x4 {
         self.columns.1 = [-s, c, 0, 0]
     }
 
+    // perspective
     init(fov: Float, aspect: Float, near: Float, far: Float) {
         let y = 1 / tan(fov * 0.5)
         let x = y / aspect
@@ -68,7 +59,7 @@ extension simd_float4x4 {
     }
 
     init(eye: Vec3, center: Vec3, up: Vec3) {
-        let z = (center - eye).normalized
+        let z = (eye - center).normalized
         let x = up.cross(z).normalized
         let y = z.cross(x)
 
@@ -79,7 +70,19 @@ extension simd_float4x4 {
         columns.3 = [-x.dot(eye), -y.dot(eye), -z.dot(eye), 1]
     }
 
-    //init(orthographic: Any) {}
+    // orthographic
+    init(orthographic size: Float, aspect: Float, near: Float, far: Float) {
+        let r = size * aspect  // right
+        let t = size  // top
+        let l = -r  // left
+        let b = -t  // bottom
+
+        self.init()
+        columns.0 = [2 / (r - l), 0, 0, 0]
+        columns.1 = [0, 2 / (t - b), 0, 0]
+        columns.2 = [0, 0, 1 / (far - near), 0]
+        columns.3 = [-(r + l) / (r - l), -(t + b) / (t - b), -near / (far - near), 1]
+    }
 }
 
 extension SIMD3 where Scalar == Float {

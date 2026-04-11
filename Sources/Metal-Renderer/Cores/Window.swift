@@ -29,6 +29,7 @@ class Window {
 
         self.view = MTKView(frame: self.window.contentView!.frame)
         self.window.contentView = self.view
+        self.view.preferredFramesPerSecond = .bitWidth
 
         self.window.title = title
         self.window.center()
@@ -36,11 +37,25 @@ class Window {
     }
 
     func append(_ label: NSControl) {
-        self.view.addSubview(label)
+        view.addSubview(label)
     }
 
     func run() {
         NSApp.activate(ignoringOtherApps: true)
-        self.app.run()
+
+        handleKeyboardEvent()
+        app.run()
+    }
+
+    private func handleKeyboardEvent() {
+        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            Input.shared.handle(event: event, isDown: true)
+            return event
+        }
+
+        NSEvent.addLocalMonitorForEvents(matching: .keyUp) { event in
+            Input.shared.handle(event: event, isDown: false)
+            return event
+        }
     }
 }

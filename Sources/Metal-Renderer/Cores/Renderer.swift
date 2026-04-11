@@ -50,21 +50,22 @@ struct FrameUniforms {
 
 // Data from Entity Transform if has
 struct EntityUniforms {
-    var model: simd_float4x4 = matrix_identity_float4x4
+    var model: simd_float4x4
 }
 
 @MainActor
 class Renderer: NSObject {
     var device: MTLDevice!
     var commandQueue: MTLCommandQueue!
+    var encoder: MTLRenderCommandEncoder!
     var pipelineState: MTLRenderPipelineState!
     var depthStencilState: MTLDepthStencilState!
     var view: MTKView!
+    var world: World?
 
-    var scene: Scene?
+    var frame = Frame()
 
-    var frameUniforms = FrameUniforms()
-    var entityUniforms = EntityUniforms()
+    var aspect: Float = 1
 
     init?(view: MTKView) {
         guard let device = MTLCreateSystemDefaultDevice(),
@@ -80,6 +81,8 @@ class Renderer: NSObject {
         self.commandQueue = commandQueue
         self.view = view
 
+        self.aspect = Float(view.drawableSize.width / view.drawableSize.height)
+
         view.device = device
         view.clearColor = MTLClearColor(red: 0.25, green: 0.25, blue: 0.25, alpha: 1.0)
         view.depthStencilPixelFormat = .depth32Float
@@ -89,8 +92,8 @@ class Renderer: NSObject {
         view.delegate = self
     }
 
-    func attach(scene: Scene) {
-        self.scene = scene
+    func attach(world: World) {
+        self.world = world
     }
 
     private func prepareRenderPipeline() {
@@ -136,6 +139,9 @@ extension Renderer: MTKViewDelegate {
         descriptor.depthAttachment.storeAction = .store
         descriptor.depthAttachment.clearDepth = 1.0
 
+        frame.update()
+        // frame.info()
+
         guard let encoder = commandBuffer.makeRenderCommandEncoder(descriptor: descriptor)
         else { return }
 
@@ -143,37 +149,11 @@ extension Renderer: MTKViewDelegate {
         encoder.setDepthStencilState(depthState)
         encoder.setDepthClipMode(.clip)
 
-        encoder.setVertexBytes(
-            &frameUniforms,
-            length: MemoryLayout<FrameUniforms>.stride,
-            index: 1
-        )
+        self.encoder = encoder
 
-        guard let scene = self.scene else { return }
+        guard let world = self.world else { return }
 
-        for entity in scene.world.entitiesWith(Mesh.self) {
-            if let mesh: Mesh = scene.world.getComponent(for: entity),
-                let transform: Transform = scene.world.getComponent(for: entity)
-            {
-
-                entityUniforms.model = transform.model
-
-                encoder.setVertexBytes(
-                    &entityUniforms,
-                    length: MemoryLayout<EntityUniforms>.stride,
-                    index: 2
-                )
-
-                if mesh.vertexBuffer == nil {
-                    mesh.prepare(device: device)
-                    print("one Mesh prepare")
-                }
-
-                mesh.draw(encoder: encoder)
-            }
-        }
-
-        scene.world.updateSystems()
+        world.runUpdateSystems(frame: frame)
 
         encoder.endEncoding()
         if let drawable = view.currentDrawable {
@@ -187,6 +167,8 @@ extension Renderer: MTKViewDelegate {
         let w = size.width
         let h = size.height
         let aspect = Float(w / h)
+
+        self.aspect = aspect
 
         print("width: \(w) - height: \(h)")
         print("aspect: \(aspect)")
