@@ -3,6 +3,12 @@ import simd
 typealias Vec3 = SIMD3<Float>
 typealias Mat4x4 = simd_float4x4
 
+extension Vec3 {
+    static var up: Vec3 {
+        Vec3(0, 1, 0)
+    }
+}
+
 extension simd_float4x4 {
     static var identity: Mat4x4 {
         matrix_identity_float4x4
@@ -46,7 +52,8 @@ extension simd_float4x4 {
 
     // perspective
     init(fov: Float, aspect: Float, near: Float, far: Float) {
-        let y = 1 / tan(fov * 0.5)
+        let fovRadians = fov * (.pi / 180.0)
+        let y = 1 / tan(fovRadians * 0.5)
         let x = y / aspect
         let z = far / (far - near)
         let w = -(far * near) / (far - near)
@@ -59,7 +66,8 @@ extension simd_float4x4 {
     }
 
     init(eye: Vec3, center: Vec3, up: Vec3) {
-        let z = (eye - center).normalized
+        // Left-handed
+        let z = (center - eye).normalized
         let x = up.cross(z).normalized
         let y = z.cross(x)
 

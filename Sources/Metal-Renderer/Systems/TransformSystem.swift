@@ -1,7 +1,7 @@
 import Metal
 import simd
 
-class TransformSystem {
+struct TransformSystem {
     func update(for transform: Transform, encoder: MTLRenderCommandEncoder) {
         var model: simd_float4x4 {
             let t = simd_float4x4(translation: transform.translation)
@@ -17,6 +17,16 @@ class TransformSystem {
         }
 
         upload(model: model, encoder: encoder)
+    }
+
+    func defaultTransform(encoder: MTLRenderCommandEncoder) {
+        var identity = EntityUniforms(model: .identity)
+
+        encoder.setVertexBytes(
+            &identity,
+            length: MemoryLayout<EntityUniforms>.stride,
+            index: 2
+        )
     }
 
     private func upload(model: simd_float4x4, encoder: MTLRenderCommandEncoder) {

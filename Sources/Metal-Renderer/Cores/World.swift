@@ -4,9 +4,6 @@ struct Entity: Hashable {
     let id: Int
 }
 
-// inout Commands
-typealias System = (Commands, Query, Input, Frame) -> Void
-
 enum SystemStage {
     case startup, update
 }
@@ -14,29 +11,33 @@ enum SystemStage {
 class World {
     var entities = Set<Entity>()
     var count = 0
+
     var components: [ObjectIdentifier: [Int: any Component]] = [:]
     var updateSystems: [System] = []
     var startupSystems: [System] = []
 
     @MainActor
-    func runStartupSystems() {
-        let commands = Commands(world: self)
-        let query = Query(world: self)
-        let frame = Frame()
+    func runStartup() {
+        let ctx = SystemContext(
+            commands: Commands(world: self),
+            query: Query(world: self),
+            input: Input.shared,
+            frame: Frame()
+        )
 
-        for system in startupSystems {
-            system(commands, query, Input.shared, frame)
-        }
+        startupSystems.forEach { $0.run(context: ctx) }
     }
 
     @MainActor
-    func runUpdateSystems(frame: Frame) {
-        let commands = Commands(world: self)
-        let query = Query(world: self)
+    func runUpdate(frame: Frame) {
+        let ctx = SystemContext(
+            commands: Commands(world: self),
+            query: Query(world: self),
+            input: Input.shared,
+            frame: frame
+        )
 
-        for system in updateSystems {
-            system(commands, query, Input.shared, frame)
-        }
+        updateSystems.forEach { $0.run(context: ctx) }
     }
 
     func fetch<T: Component>(_ type: T.Type, for entity: Entity) -> T? {

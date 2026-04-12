@@ -7,10 +7,12 @@ struct Query {
 
     func query<C1: Component>(
         _: C1.Type,
-        logic: (Entity, C1) -> Void
+        excluding: [any Component.Type],
+        _ logic: (Entity, C1) -> Void
     ) {
         for entity in world.entities {
-            guard let c1: C1 = world.fetch(C1.self, for: entity)
+            guard let c1: C1 = world.fetch(C1.self, for: entity),
+                !isExcluded(entity, excluding)
             else { continue }
             logic(entity, c1)
         }
@@ -18,11 +20,13 @@ struct Query {
 
     func query<C1: Component, C2: Component>(
         _: C1.Type, _: C2.Type,
-        logic: (Entity, C1, C2) -> Void
+        excluding: [any Component.Type],
+        _ logic: (Entity, C1, C2) -> Void
     ) {
         for entity in world.entities {
             guard let c1: C1 = world.fetch(C1.self, for: entity),
-                let c2: C2 = world.fetch(C2.self, for: entity)
+                let c2: C2 = world.fetch(C2.self, for: entity),
+                !isExcluded(entity, excluding)
             else { continue }
             logic(entity, c1, c2)
         }
@@ -30,12 +34,14 @@ struct Query {
 
     func query<C1: Component, C2: Component, C3: Component>(
         _: C1.Type, _: C2.Type, _: C3.Type,
-        logic: (Entity, C1, C2, C3) -> Void
+        excluding: [any Component.Type],
+        _ logic: (Entity, C1, C2, C3) -> Void
     ) {
         for entity in world.entities {
             guard let c1: C1 = world.fetch(C1.self, for: entity),
                 let c2: C2 = world.fetch(C2.self, for: entity),
-                let c3: C3 = world.fetch(C3.self, for: entity)
+                let c3: C3 = world.fetch(C3.self, for: entity),
+                !isExcluded(entity, excluding)
             else { continue }
             logic(entity, c1, c2, c3)
         }
@@ -48,4 +54,9 @@ struct Query {
             }
         }
     }
+
+    private func isExcluded(_ entity: Entity, _ excluded: [any Component.Type]) -> Bool {
+        excluded.contains { world.fetch($0, for: entity) != nil }
+    }
+
 }

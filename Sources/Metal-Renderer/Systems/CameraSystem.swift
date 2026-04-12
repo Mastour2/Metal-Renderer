@@ -1,11 +1,14 @@
 import Metal
 import simd
 
-class CameraSystem {
+struct CameraSystem {
     func update(for camera: any Camera, aspect: Float, encoder: MTLRenderCommandEncoder) {
         switch camera {
         case let cam as Camera2d:
             let (p, v) = makeOrthographic(camera: cam, aspect: aspect)
+            upload(proj: p, view: v, encoder: encoder)
+        case let cam as Camera3d:
+            let (p, v) = makePerspective(camera: cam, aspect: aspect)
             upload(proj: p, view: v, encoder: encoder)
         default:
             break

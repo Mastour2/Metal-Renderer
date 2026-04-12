@@ -1,6 +1,6 @@
 import Metal
 
-class RenderSystem {
+struct RenderSystem {
     func prepare(mesh: inout Mesh, device: MTLDevice) {
         mesh.vertexBuffer = device.makeBuffer(
             bytes: mesh.geometry.vertices,
@@ -18,13 +18,13 @@ class RenderSystem {
     }
 
     func render(mesh: Mesh, encoder: MTLRenderCommandEncoder) {
-        // if mesh.vertexBuffer == nil {
-        //     var mutableMesh = mesh
-        //     self.prepare(mesh: &mutableMesh, device: device)
-        // }
-
         guard let vbo = mesh.vertexBuffer else { return }
+
         encoder.setVertexBuffer(vbo, offset: 0, index: 0)
+        
+        if mesh.wirframe {
+            encoder.setTriangleFillMode(.lines)
+        }
 
         if let ibo = mesh.indexBuffer {
             encoder.drawIndexedPrimitives(

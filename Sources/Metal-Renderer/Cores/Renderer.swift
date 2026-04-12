@@ -13,6 +13,11 @@ let shaders = """
       float4x4 model;
     };
 
+    struct MaterialUniforms {
+        float4 basicColor;
+        bool hasMaterial;
+    };
+
     struct VertexIn {
       float3 position [[attribute(0)]];
       float3 color [[attribute(1)]];
@@ -36,10 +41,15 @@ let shaders = """
       return out;
     }
 
-    fragment float4 fragment_main(VertexOut in [[stage_in]]) {
+    fragment float4 fragment_main(
+        VertexOut in [[stage_in]],
+        constant MaterialUniforms &material [[buffer(3)]]
+    ) {
+      if (material.hasMaterial) {
+        return material.basicColor;
+      }
       return in.color;
     }
-
     """
 
 // Data form Camera if has
@@ -51,6 +61,11 @@ struct FrameUniforms {
 // Data from Entity Transform if has
 struct EntityUniforms {
     var model: simd_float4x4
+}
+
+struct MaterialUniforms {
+    var basicColor: simd_float4
+    var hasMaterial: Bool
 }
 
 @MainActor
@@ -149,11 +164,14 @@ extension Renderer: MTKViewDelegate {
         encoder.setDepthStencilState(depthState)
         encoder.setDepthClipMode(.clip)
 
+        // encoder.setFrontFacing(.counterClockwise)
+        // encoder.setCullMode(.back)
+
         self.encoder = encoder
 
         guard let world = self.world else { return }
 
-        world.runUpdateSystems(frame: frame)
+        world.runUpdate(frame: frame)
 
         encoder.endEncoding()
         if let drawable = view.currentDrawable {
