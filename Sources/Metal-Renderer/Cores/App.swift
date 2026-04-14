@@ -1,3 +1,5 @@
+import Metal
+
 protocol AppState: Equatable, Hashable, CaseIterable {
     static var defaultState: Self { get }
 }
@@ -6,9 +8,16 @@ extension AppState {
     static var defaultState: Self { allCases.first! }
 }
 
+struct RenderQuery {
+    let mesh: Mesh
+    let transform: Transform?
+    let material: Material?
+    let texture: Texture?
+}
+
 @MainActor
 class App<State: AppState> {
-    private let window: Window
+    let window: Window
     private let scene: Scene
     private let renderer: Renderer
 
@@ -76,67 +85,114 @@ class App<State: AppState> {
         }
     }
 
-    private func runCoreSystems() {
-        let tSystem = transformSystem
-        let rSystem = renderSystem
-        let mSystem = materialSystem
+    func runCoreSystems() {
+        setupStartupSystems()
+        setupUpdateSystems()
+    }
 
+    private func setupStartupSystems() {
         guard let device = renderer.device else { return }
 
-        // App Startup
-        addSystem(.startup) { commands, query, _, _ in
+        addSystem(.startup) { [weak self] commands, query, _, _ in
+            guard let self else { return }
+
+            query.query(Texture.self, excluding: []) { entity, texture in
+                var tex = texture
+                tex.mtlTexture = TextureSystem(
+                    name: tex.name,
+                    ext: tex.ext,
+                    origin: tex.origin
+                ).load(device: device)
+                commands.addComponent(to: entity, component: tex)
+            }
+
             query.query(Mesh.self, excluding: []) { entity, mesh in
                 var m = mesh
-                rSystem.prepare(mesh: &m, device: device)
+                self.renderSystem.prepare(mesh: &m, device: device)
                 commands.addComponent(to: entity, component: m)
             }
         }
+    }
 
-        // App Update
+    private func setupUpdateSystems() {
         addSystem(.update) { [weak self] commands, query, input, frame in
-            guard let self, let encoder = self.renderer.encoder else { return }
+            guard let self,
+                let encoder = self.renderer.encoder
+            else { return }
 
-            query.query(Camera3d.self, excluding: []) { entity, camera in
-                var cam = camera
+            self.updateCameras(commands: commands, query: query, encoder: encoder)
+            self.renderMeshes(commands: commands, query: query, encoder: encoder)
+        }
+    }
 
-                if let transform: Transform = commands.getComponent(for: entity) {
-                    cam.position = transform.translation
-                    commands.addComponent(to: entity, component: cam)
-                }
+    func updateCameras(
+        commands: Commands,
+        query: Query,
+        encoder: MTLRenderCommandEncoder
+    ) {
+        query.query(Camera3d.self, excluding: []) { entity, camera in
+            var cam = camera
+            if let transform: Transform = commands.getComponent(for: entity) {
+                cam.position = transform.translation
+                commands.addComponent(to: entity, component: cam)
+            }
+            cameraSystem.update(for: cam, aspect: renderer.aspect, encoder: encoder)
+        }
 
-                cameraSystem.update(for: cam, aspect: renderer.aspect, encoder: encoder)
+        query.query(Camera2d.self, excluding: []) { entity, camera in
+            var cam = camera
+            if let transform: Transform = commands.getComponent(for: entity) {
+                cam.position = transform.translation
+                commands.addComponent(to: entity, component: cam)
+            }
+            cameraSystem.update(for: cam, aspect: renderer.aspect, encoder: encoder)
+        }
+    }
+
+    func renderMeshes(
+        commands: Commands,
+        query: Query,
+        encoder: MTLRenderCommandEncoder
+    ) {
+        let render: (RenderQuery) -> Void = { rq in
+            encoder.setFragmentTexture(rq.texture?.mtlTexture, index: 0)
+
+            if let material = rq.material {
+                self.materialSystem.upload(
+                    material: material, encoder: encoder, hasTexture: rq.texture != nil)
+            } else {
+                self.materialSystem.defaultMaterial(encoder: encoder, hasTexture: rq.texture != nil)
             }
 
-            query.query(Camera2d.self, excluding: []) { entity, camera in
-                var cam = camera
-
-                if let transform: Transform = commands.getComponent(for: entity) {
-                    cam.position = transform.translation
-                    commands.addComponent(to: entity, component: cam)
-                }
-
-                cameraSystem.update(for: cam, aspect: renderer.aspect, encoder: encoder)
+            if let transform = rq.transform {
+                self.transformSystem.update(for: transform, encoder: encoder)
+            } else {
+                self.transformSystem.defaultTransform(encoder: encoder)
             }
 
-            query.query(Mesh.self, excluding: [Transform.self, Material.self]) { entity, mesh in
-                mSystem.defaultMaterial(encoder: encoder)
-                tSystem.defaultTransform(encoder: encoder)
-                rSystem.render(mesh: mesh, encoder: encoder)
-            }
+            self.renderSystem.render(mesh: rq.mesh, encoder: encoder)
+        }
 
-            query.query(Mesh.self, Transform.self, excluding: [Material.self]) {
-                entity, mesh, transform in
-                mSystem.defaultMaterial(encoder: encoder)
-                tSystem.update(for: transform, encoder: encoder)
-                rSystem.render(mesh: mesh, encoder: encoder)
-            }
+        query.query(Mesh.self, Transform.self, Texture.self, excluding: [Material.self]) {
+            _, mesh, transform, texture in
+            render(RenderQuery(mesh: mesh, transform: transform, material: nil, texture: texture))
+        }
 
-            query.query(Mesh.self, Transform.self, Material.self, excluding: []) {
-                entity, mesh, transform, material in
-                mSystem.upload(material: material, encoder: encoder)
-                tSystem.update(for: transform, encoder: encoder)
-                rSystem.render(mesh: mesh, encoder: encoder)
-            }
+        query.query(Mesh.self, Transform.self, Material.self, excluding: [Texture.self]) {
+            _, mesh, transform, material in
+            render(RenderQuery(mesh: mesh, transform: transform, material: material, texture: nil))
+        }
+
+        // Material + Texture
+        query.query(Mesh.self, Transform.self, Material.self, Texture.self, excluding: []) {
+            _, mesh, transform, material, texture in
+            render(
+                RenderQuery(mesh: mesh, transform: transform, material: material, texture: texture))
+        }
+
+        query.query(Mesh.self, Transform.self, excluding: [Material.self, Texture.self]) {
+            _, mesh, transform in
+            render(RenderQuery(mesh: mesh, transform: transform, material: nil, texture: nil))
         }
     }
 }

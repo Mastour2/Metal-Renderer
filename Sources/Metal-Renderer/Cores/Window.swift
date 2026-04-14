@@ -1,5 +1,6 @@
 import AppKit
 import MetalKit
+import SwiftUI
 
 @MainActor
 class Window {
@@ -36,8 +37,19 @@ class Window {
         self.window.makeKeyAndOrderFront(nil)
     }
 
-    func append(_ label: NSControl) {
-        view.addSubview(label)
+    func overlay<Content: View>(_ swiftUIView: Content) {
+        let hostingView = NSHostingView(rootView: swiftUIView)
+
+        hostingView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(hostingView)
+
+        NSLayoutConstraint.activate([
+            hostingView.topAnchor.constraint(equalTo: view.topAnchor, constant: 16),
+            hostingView.leadingAnchor.constraint(equalTo: view.leadingAnchor, constant: 16),
+        ])
+
+        // Transparent background so Metal renders through
+        hostingView.layer?.backgroundColor = .clear
     }
 
     func run() {

@@ -14,6 +14,11 @@ extension MTLVertexDescriptor {
         des.attributes[1].offset = MemoryLayout<Vertex>.offset(of: \.color)!
         des.attributes[1].bufferIndex = 0
 
+        // uv
+        des.attributes[2].format = .float2
+        des.attributes[2].offset = MemoryLayout<Vertex>.offset(of: \.uv)!
+        des.attributes[2].bufferIndex = 0
+
         des.layouts[0].stride = MemoryLayout<Vertex>.stride
 
         return des

@@ -1,6 +1,7 @@
 import simd
 
 typealias Vec3 = SIMD3<Float>
+typealias Vec2 = SIMD2<Float>
 typealias Mat4x4 = simd_float4x4
 
 extension Vec3 {

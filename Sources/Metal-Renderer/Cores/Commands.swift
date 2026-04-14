@@ -44,4 +44,8 @@ struct Commands {
     func hasComponent<T: Component>(_ type: T.Type, in entity: Entity) -> Bool {
         world.components[ObjectIdentifier(type)]?[entity.id] != nil
     }
+
+    func entityCount() -> Int {
+        return world.entities.count
+    }
 }

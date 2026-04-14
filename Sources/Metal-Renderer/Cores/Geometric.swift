@@ -1,6 +1,7 @@
 struct Vertex {
     var position: Vec3
     var color: Vec3
+    var uv: Vec2
 }
 
 protocol Geometry {
@@ -16,15 +17,18 @@ struct Triangle: Geometry {
         vertices = [
             Vertex(
                 position: Vec3(0.0, 0.5, 0.0),
-                color: Vec3(1, 1, 1)
+                color: Vec3(1, 1, 1),
+                uv: Vec2(0.5, 0)
             ),
             Vertex(
                 position: Vec3(-0.5, -0.5, 0.0),
-                color: Vec3(1, 1, 1)
+                color: Vec3(1, 1, 1),
+                uv: Vec2(0, 1)
             ),
             Vertex(
                 position: Vec3(0.5, -0.5, 0.0),
-                color: Vec3(1, 1, 1)
+                color: Vec3(1, 1, 1),
+                uv: Vec2(1, 1)
             ),
         ]
     }
@@ -38,19 +42,23 @@ struct Quad: Geometry {
         vertices = [
             Vertex(
                 position: Vec3(-0.5, 0.5, 0.0),
-                color: Vec3(1, 1, 1)
+                color: Vec3(1, 1, 1),
+                uv: Vec2(0, 0)
             ),
             Vertex(
                 position: Vec3(-0.5, -0.5, 0.0),
-                color: Vec3(1, 1, 1)
+                color: Vec3(1, 1, 1),
+                uv: Vec2(0, 1)
             ),
             Vertex(
                 position: Vec3(0.5, -0.5, 0.0),
-                color: Vec3(1, 1, 1)
+                color: Vec3(1, 1, 1),
+                uv: Vec2(1, 1)
             ),
             Vertex(
                 position: Vec3(0.5, 0.5, 0.0),
-                color: Vec3(1, 1, 1)
+                color: Vec3(1, 1, 1),
+                uv: Vec2(1, 0)
             ),
         ]
 

@@ -21,7 +21,7 @@ struct RenderSystem {
         guard let vbo = mesh.vertexBuffer else { return }
 
         encoder.setVertexBuffer(vbo, offset: 0, index: 0)
-        
+
         if mesh.wirframe {
             encoder.setTriangleFillMode(.lines)
         }

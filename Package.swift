@@ -14,7 +14,8 @@ let package = Package(
             name: "Metal-Renderer",
             path: "Sources/Metal-Renderer",
             resources: [
-                .process("Shaders")
+                .process("Shaders"),
+                .process("Resources"),
             ]
         ),
         .testTarget(

@@ -6,8 +6,8 @@ class Frame {
     private(set) var time: Float = 0
 
     private var lastTime: TimeInterval = ProcessInfo.processInfo.systemUptime
-    private var frameCount: Int = 0
-    private var fpsTimer: Float = 0
+    private(set) var frameCount: Int = 0
+    private(set) var fpsTimer: Float = 0
 
     func update() {
         let now = ProcessInfo.processInfo.systemUptime
