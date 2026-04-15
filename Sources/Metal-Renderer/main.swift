@@ -20,9 +20,8 @@ app.addSystem(.startup) { commands, query in
     )
 
     commands.spawn(
-        Mesh(geometry: GLTFGeometry(named: "man") ?? Triangle()),
+        Mesh(geometry: ModelGeometry(named: "man") ?? Triangle()),
         Texture(name: "CharacterMat_baseColor"),
-        // Material(basicColor: Vec3(0.4, 0.5, 1)),
         Transform(
             translation: Vec3(0, 0, 0),
             rotation: Vec3(-.pi / 2, 0, 0),
@@ -31,7 +30,7 @@ app.addSystem(.startup) { commands, query in
     )
 
     commands.spawn(
-        Mesh(geometry: GLTFGeometry(named: "man") ?? Triangle()),
+        Mesh(geometry: ModelGeometry(named: "man") ?? Triangle()),
         Texture(name: "templategrid_albedo"),
         Transform(
             translation: Vec3(-3.5, 0, 0),
@@ -41,7 +40,7 @@ app.addSystem(.startup) { commands, query in
     )
 
     commands.spawn(
-        Mesh(geometry: GLTFGeometry(named: "man") ?? Triangle()),
+        Mesh(geometry: ModelGeometry(named: "man") ?? Triangle()),
         Texture(name: "templategrid_orm"),
         Transform(
             translation: Vec3(3.5, 0, 0),
@@ -56,7 +55,9 @@ app.addSystem(.startup) { commands, query in
         EngineStats.shared.camera = camera
     }
 }
+
 var angle: Float = 0
+
 app.addSystem(.update) { command, query, input, frame in
     EngineStats.shared.frame = frame
 
@@ -70,6 +71,19 @@ app.addSystem(.update) { command, query, input, frame in
         t.rotation.y = -.pi / 2
 
         command.addComponent(to: e, component: t)
+    }
+
+    query.query(Transform.self, Camera3d.self, excluding: []) { e, transform, camera in
+        var t = transform
+        var c = camera
+
+        let z = abs(cos(frame.time * 0.25) * 15)
+
+        t.translation.z = max(6.0, min(z, 15))
+        c.position = t.translation
+
+        command.addComponent(to: e, component: c)
+        command.addComponents(to: e, t)
     }
 }
 

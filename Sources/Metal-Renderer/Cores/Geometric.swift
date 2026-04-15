@@ -13,6 +13,95 @@ protocol Geometry {
     var indices: [UInt16]? { get set }
 }
 
+struct GLTFLoadResult {
+    let vertices: [Vertex]
+    let indices: [UInt16]
+}
+
+// GL Transmission Format
+final class GLTFLoader {
+    static func load(from url: URL) -> GLTFLoadResult? {
+        guard let asset = try? GLTFAsset(url: url),
+            let mesh = asset.meshes.first,
+            let primitive = mesh.primitives.first
+        else { return nil }
+
+        let posAccessor = primitive.attributes.first(where: { $0.name == "POSITION" })?.accessor
+        let uvAccessor = primitive.attributes.first(where: { $0.name == "TEXCOORD_0" })?.accessor
+
+        guard let posAcc = posAccessor,
+            let posBV = posAcc.bufferView,
+            let posData = posBV.buffer.data
+        else { return nil }
+
+        let posOff = Int(posBV.offset) + Int(posAcc.offset)
+        let count = posAcc.count
+
+        let positions: [Float] = posData.subdata(in: posOff..<posOff + count * 12).withUnsafeBytes {
+            Array($0.bindMemory(to: Float.self))
+        }
+
+        var uvs: [Float] = Array(repeating: 0, count: count * 2)
+        if let uvAcc = uvAccessor,
+            let uvBV = uvAcc.bufferView,
+            let uvData = uvBV.buffer.data
+        {
+            let uvOff = Int(uvBV.offset) + Int(uvAcc.offset)
+            uvs = uvData.subdata(in: uvOff..<uvOff + count * 8).withUnsafeBytes {
+                Array($0.bindMemory(to: Float.self))
+            }
+        }
+
+        var finalIndices: [UInt16] = []
+        if let idxAcc = primitive.indices,
+            let idxBV = idxAcc.bufferView,
+            let idxData = idxBV.buffer.data
+        {
+
+            let idxOff = Int(idxBV.offset) + Int(idxAcc.offset)
+            let isUInt32 = idxAcc.componentType == .unsignedInt
+
+            if isUInt32 {
+                let raw32: [UInt32] = idxData.subdata(in: idxOff..<idxOff + idxAcc.count * 4)
+                    .withUnsafeBytes {
+                        Array($0.bindMemory(to: UInt32.self))
+                    }
+                finalIndices = raw32.map { UInt16($0) }
+            } else {
+                finalIndices = idxData.subdata(in: idxOff..<idxOff + idxAcc.count * 2)
+                    .withUnsafeBytes {
+                        Array($0.bindMemory(to: UInt16.self))
+                    }
+            }
+        }
+
+        var centerZ: Float = 0
+
+        if posAcc.minValues.count > 2 && posAcc.maxValues.count > 2 {
+            let minZ = posAcc.minValues[2].floatValue
+            let maxZ = posAcc.maxValues[2].floatValue
+            centerZ = (minZ + maxZ) / 2.0
+        }
+
+        let vertices = (0..<count).map { i in
+            Vertex(
+                position: Vec3(
+                    positions[i * 3],
+                    positions[i * 3 + 1],
+                    positions[i * 3 + 2] - centerZ
+                ),
+                color: Vec3(1, 1, 1),
+                uv: Vec2(uvs[i * 2], uvs[i * 2 + 1])
+            )
+        }
+
+        return GLTFLoadResult(
+            vertices: vertices,
+            indices: finalIndices
+        )
+    }
+}
+
 struct Triangle: Geometry {
     var vertices: [Vertex]
     var indices: [UInt16]?
@@ -77,104 +166,20 @@ enum OffsetPosition {
     case none, center
 }
 
-// GL Transmission Format
-struct GLTFGeometry: Geometry {
+struct ModelGeometry: Geometry {
     var vertices: [Vertex]
     var indices: [UInt16]?
 
     init?(named name: String, offset: OffsetPosition = .none) {
         guard
-            let gltfURL = Bundle.module.url(forResource: name, withExtension: "gltf"),
-            let gltfData = try? Data(contentsOf: gltfURL),
-            let json = try? JSONSerialization.jsonObject(with: gltfData) as? [String: Any]
+            let url = Bundle.module.url(forResource: name, withExtension: "gltf"),
+            let res = GLTFLoader.load(from: url)
         else {
-            print("GLTF not found: \(name)")
+            print("GLTF Not Found: \(name)")
             return nil
         }
 
-        guard
-            let bufferViews = json["bufferViews"] as? [[String: Any]],
-            let accessors = json["accessors"] as? [[String: Any]],
-            let meshes = json["meshes"] as? [[String: Any]],
-            let primitive = (meshes.first?["primitives"] as? [[String: Any]])?.first,
-            let attributes = primitive["attributes"] as? [String: Int]
-        else { return nil }
-
-        // accessor indices
-        guard
-            let posIdx = attributes["POSITION"],
-            let uvIdx = attributes["TEXCOORD_0"],
-            let idxIdx = primitive["indices"] as? Int
-        else { return nil }
-
-        func bufferOffset(_ accessorIdx: Int) -> (offset: Int, count: Int) {
-            let acc = accessors[accessorIdx]
-            let bvIdx = acc["bufferView"] as! Int
-            let bv = bufferViews[bvIdx]
-            let bvOff = bv["byteOffset"] as? Int ?? 0
-            let accOff = acc["byteOffset"] as? Int ?? 0
-            let count = acc["count"] as! Int
-            return (bvOff + accOff, count)
-        }
-
-        // bin file
-        guard
-            let buffers = json["buffers"] as? [[String: Any]],
-            let binName = buffers.first?["uri"] as? String
-        else { return nil }
-
-        let binBase = String(binName.dropLast(4))
-        guard
-            let binURL = Bundle.module.url(forResource: binBase, withExtension: "bin"),
-            let binData = try? Data(contentsOf: binURL)
-        else {
-            print("bin not found: \(binName)")
-            return nil
-        }
-
-        // Positions
-        let (posOff, posCount) = bufferOffset(posIdx)
-        let positions: [Float] = binData.subdata(
-            in: posOff..<posOff + posCount * 12
-        ).withUnsafeBytes { Array($0.bindMemory(to: Float.self)) }
-
-        // UVs
-        let (uvOff, _) = bufferOffset(uvIdx)
-        let uvs: [Float] = binData.subdata(
-            in: uvOff..<uvOff + posCount * 8
-        ).withUnsafeBytes { Array($0.bindMemory(to: Float.self)) }
-
-        // Indices
-        let (idxOff, idxCount) = bufferOffset(idxIdx)
-        let rawIdx: [UInt32] = binData.subdata(
-            in: idxOff..<idxOff + idxCount * 4
-        ).withUnsafeBytes { Array($0.bindMemory(to: UInt32.self)) }
-
-        // center
-        let posAcc = accessors[posIdx]
-        let minVals = posAcc["min"] as? [Double] ?? []
-        let maxVals = posAcc["max"] as? [Double] ?? []
-        let centerY =
-            minVals.count > 2 && maxVals.count > 2
-            ? Float((minVals[2] + maxVals[2]) / 2)
-            : 0
-
-        // Build vertices
-        var verts: [Vertex] = []
-        for i in 0..<posCount {
-            verts.append(
-                Vertex(
-                    position: Vec3(
-                        positions[i * 3],
-                        positions[i * 3 + 1],
-                        positions[i * 3 + 2] - centerY
-                    ),
-                    color: Vec3(1, 1, 1),
-                    uv: Vec2(uvs[i * 2], uvs[i * 2 + 1])
-                ))
-        }
-
-        self.vertices = verts
-        self.indices = rawIdx.map { UInt16($0) }
+        self.vertices = res.vertices
+        self.indices = res.indices
     }
 }
