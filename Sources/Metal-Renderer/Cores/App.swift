@@ -1,4 +1,5 @@
-import Metal
+// import Metal
+import MetalKit
 
 protocol AppState: Equatable, Hashable, CaseIterable {
     static var defaultState: Self { get }
@@ -25,7 +26,7 @@ class App<State: AppState> {
 
     // core systems
     private let cameraSystem = CameraSystem()
-    private let renderSystem = RenderSystem()
+    private let meshRenderSystem = MeshRenderSystem()
     private let transformSystem = TransformSystem()
     private let materialSystem = MaterialSystem()
 
@@ -108,7 +109,7 @@ class App<State: AppState> {
 
             query.query(Mesh.self, excluding: []) { entity, mesh in
                 var m = mesh
-                self.renderSystem.prepare(mesh: &m, device: device)
+                self.meshRenderSystem.prepare(mesh: &m, device: device)
                 commands.addComponent(to: entity, component: m)
             }
         }
@@ -170,7 +171,8 @@ class App<State: AppState> {
                 self.transformSystem.defaultTransform(encoder: encoder)
             }
 
-            self.renderSystem.render(mesh: rq.mesh, encoder: encoder)
+            self.meshRenderSystem.render(mesh: rq.mesh, encoder: encoder)
+            self.renderer.frame.increaseDrawCall()
         }
 
         query.query(Mesh.self, Transform.self, Texture.self, excluding: [Material.self]) {

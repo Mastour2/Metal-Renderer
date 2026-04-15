@@ -19,6 +19,8 @@ struct ContentView: View {
                     .font(.headline)
                 Text("Entities: \(stats.entities)")
                     .font(.subheadline)
+                Text("Draw Calls: \(Int(stats.frame?.drawCalls ?? 0))")
+                    .font(.subheadline)
 
                 Text("Frame")
                     .font(.headline)

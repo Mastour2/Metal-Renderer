@@ -4,16 +4,22 @@ class Frame {
     private(set) var delta: Float = 0
     private(set) var fps: Float = 0
     private(set) var time: Float = 0
+    private(set) var drawCalls: Int = 0
+    private var currentFrameDraws: Int = 0
 
     private var lastTime: TimeInterval = ProcessInfo.processInfo.systemUptime
     private(set) var frameCount: Int = 0
     private(set) var fpsTimer: Float = 0
 
+    func increaseDrawCall() {
+        currentFrameDraws += 1
+    }
+
     func update() {
         let now = ProcessInfo.processInfo.systemUptime
         delta = Float(now - lastTime)
         lastTime = now
-
+        drawCalls = currentFrameDraws
         // A max delta of 0.1s (10 FPS) prevents physics from exploding
         let clampedDelta = min(delta, 0.1)
 
@@ -26,6 +32,7 @@ class Frame {
             frameCount = 0
             fpsTimer = 0
         }
+        currentFrameDraws = 0
     }
 
     func info() {

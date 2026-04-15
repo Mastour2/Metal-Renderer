@@ -9,9 +9,18 @@ let package = Package(
     products: [
         .executable(name: "Metal-Renderer", targets: ["Metal-Renderer"])
     ],
+    dependencies: [
+        .package(
+            url: "https://github.com/warrenm/GLTFKit2",
+            from: "0.5.0"
+        )
+    ],
     targets: [
         .executableTarget(
             name: "Metal-Renderer",
+            dependencies: [
+                .product(name: "GLTFKit2", package: "GLTFKit2")
+            ],
             path: "Sources/Metal-Renderer",
             resources: [
                 .process("Shaders"),

@@ -1,6 +1,6 @@
 import Metal
 
-struct RenderSystem {
+struct MeshRenderSystem {
     func prepare(mesh: inout Mesh, device: MTLDevice) {
         mesh.vertexBuffer = device.makeBuffer(
             bytes: mesh.geometry.vertices,

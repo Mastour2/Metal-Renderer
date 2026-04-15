@@ -105,6 +105,8 @@ class Renderer: NSObject {
 
     var aspect: Float = 1
 
+    var mesh: MTKMesh?
+
     init?(view: MTKView) {
         guard let device = MTLCreateSystemDefaultDevice(),
             let commandQueue = device.makeCommandQueue()
@@ -147,6 +149,7 @@ class Renderer: NSObject {
         des.fragmentFunction = fragmentFunc
         des.colorAttachments[0].pixelFormat = view.colorPixelFormat
         des.vertexDescriptor = MTLVertexDescriptor.defaultLayout
+
         des.depthAttachmentPixelFormat = view.depthStencilPixelFormat
 
         let depthDescriptor = MTLDepthStencilDescriptor()
@@ -199,6 +202,7 @@ extension Renderer: MTKViewDelegate {
 
         // encoder.setFrontFacing(.counterClockwise)
         // encoder.setCullMode(.back)
+        //encoder.setTriangleFillMode(.lines)
 
         self.encoder = encoder
 
